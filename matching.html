@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Pairing Emoji & Angka</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            overflow: hidden;
+            background: linear-gradient(135deg, red, green, blue);
+            height: 100vh;
+            width: 100%;
+            margin: 0;
+        }
+        .main{
+            display: flex; 
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center;
+            position: relative; 
+            background: rgba(255,255,255,0.75);
+            background-repeat: no-repeat;
+            width: 80%;
+            height: 80%;
+            border-radius: 20px;
+            box-shadow: 0 8px 10px rgba(0,0,0,0.25);
+        }
+
+        .game-container { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            position: relative; 
+            column-gap: 100px; 
+        }
+        .column { 
+            display: flex; 
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; 
+            gap: 10px; 
+            z-index: 2; 
+        }
+        .item { 
+            padding: 5px; 
+            background: white; 
+            border: 2px solid #ddd; 
+            border-radius: 24px; 
+            cursor: pointer; 
+            text-align: center; 
+            width: 100%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 1rem;
+            transition: 0.25s; 
+            user-select: none;
+        }
+        .item:hover { border-color: #3498db; }
+        .item.selected { border-color: #3498db; background: #ebf5fb; transform: scale(1.02); }
+        
+        /* Warna saat benar */
+        .item.correct { border-color: #2ecc71; background: #eafaf1; pointer-events: none; opacity: 0.8; }
+        
+        /* Warna saat salah */
+        .item.wrong { border-color: #e74c3c; background: #fdedec; animation: shake 0.3s; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        #line-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+        line { stroke: #3498db; stroke-width: 4; stroke-linecap: round; }
+        line.correct-line { stroke: #2ecc71; }
+        line.wrong-line { stroke: #e74c3c; }
+
+        /* Modal Styles */
+        .modal {
+            display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); justify-content: center; align-items: center;
+        }
+        .modal-content {
+            display: flex;
+            flex-direction: column;
+            background-image: url("https://lh3.googleusercontent.com/d/1VANpy_EIf2S8xcoLmNYt9onOfx0tfyKZ");
+            background-repeat: no-repeat;
+            background-size: contain;
+            background-position: center; 
+            padding: 25px; 
+            text-align: center;
+            align-items: center;
+            justify-content: center;
+            width: 80%;
+            height: 90%;
+        }
+        .modal h2 { margin-top: 0; color: rgb(0, 0, 0);}
+        .modal p { margin-top: 0; color: rgb(0, 0, 0);}
+        .modal button { background: rgb(0, 127, 0); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+        
+        .btn-main { margin-top: 10px; background: blue; color: white; border: none; border-radius: 30px; cursor: pointer; height: 30px; width: 150px; font-size: 1rem;}
+    </style>
+</head>
+<body>
+    <div class="main">
+        <div>
+            <h1 style="color: blue; padding: 0px; margin:0px">PASANGKAN</h1>
+        </div>
+        <div class="game-container">
+            <svg id="line-container"></svg>
+            <div class="column" id="questions"></div>
+            <div class="column" id="answers"></div>
+        </div>
+        <div style="display: flex; flex-direction: row; gap:10px">
+            <button class="btn-main" onclick="initGame()">Acak & Main Lagi</button>
+            <button class="btn-main" onclick="openFullscreen()">Layar Penuh</button>
+        </div>
+    </div>
+
+    <div id="gameModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle"></h2>
+            <p id="modalMessage"></p>
+            <button id="modalBtn" onclick="closeModal()">OK</button>
+        </div>
+    </div>
+    <script>
+        const fruits = ['🍎', '🍊', '🍇', '🍓', '🍌', '🍍', '🥝', '🍒'];
+        let selected = { left: null, right: null };
+        let matchedCount = 0;
+        let totalSoal = 0;
+        const svg = document.getElementById('line-container');
+
+        function initGame() {
+            svg.innerHTML = '';
+            matchedCount = 0;
+            const questionsContainer = document.getElementById('questions');
+            const answersContainer = document.getElementById('answers');
+            questionsContainer.innerHTML = '';
+            answersContainer.innerHTML = '';
+
+            let data = [];
+            const min = Math.floor(1 + Math.random() * 6);
+            const max = min + 4;
+            totalSoal = (max - min) + 1;
+
+            for (let i = min; i <= max; i++) {
+                const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
+                data.push({
+                    id: i,
+                    soal: randomFruit.repeat(i),
+                    angka: i
+                });
+            }
+
+            const soalAcak = [...data].sort(() => Math.random() - 0.5);
+            const jawabanAcak = [...data].sort(() => Math.random() - 0.5);
+
+            soalAcak.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerHTML = item.soal;
+                div.dataset.id = item.id;
+                div.onclick = () => selectPoint(div, 'left');
+                questionsContainer.appendChild(div);
+            });
+
+            jawabanAcak.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerText = item.angka;
+                div.dataset.id = item.id;
+                div.onclick = () => selectPoint(div, 'right');
+                answersContainer.appendChild(div);
+            });
+        }
+
+        function selectPoint(element, side) {
+            if (element.classList.contains('correct')) return;
+
+            if (selected[side]) selected[side].classList.remove('selected');
+            selected[side] = element;
+            element.classList.add('selected');
+
+            if (selected.left && selected.right) {
+                const l = selected.left;
+                const r = selected.right;
+
+                if (l.dataset.id === r.dataset.id) {
+                    // BENAR
+                    drawLine(l, r, 'correct-line');
+                    l.classList.add('correct');
+                    r.classList.add('correct');
+                    matchedCount++;
+                    
+                    if (matchedCount === totalSoal) {
+                        setTimeout(() => showModal("Selamat!", "Kamu berhasil!", "Main Lagi"), 300);
+                    }
+                } else {
+                    // SALAH
+                    const tempLine = drawLine(l, r, 'wrong-line');
+                    l.classList.add('wrong');
+                    r.classList.add('wrong');
+                    
+                    setTimeout(() => {
+                        showModal("Salah", "Coba lagi!", "OK");
+                        l.classList.remove('wrong');
+                        r.classList.remove('wrong');
+                        tempLine.remove();
+                    }, 200);
+                }
+                
+                l.classList.remove('selected');
+                r.classList.remove('selected');
+                selected = { left: null, right: null };
+            }
+        }
+
+        function drawLine(el1, el2, className) {
+            const rect1 = el1.getBoundingClientRect();
+            const rect2 = el2.getBoundingClientRect();
+            const containerRect = svg.getBoundingClientRect();
+
+            const newLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            newLine.setAttribute("x1", rect1.right - containerRect.left);
+            newLine.setAttribute("y1", rect1.top + rect1.height / 2 - containerRect.top);
+            newLine.setAttribute("x2", rect2.left - containerRect.left);
+            newLine.setAttribute("y2", rect2.top + rect2.height / 2 - containerRect.top);
+            newLine.setAttribute("class", className);
+            svg.appendChild(newLine);
+            return newLine;
+        }
+
+        function showModal(title, msg, btnText) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = msg;
+            document.getElementById('modalBtn').innerText = btnText;
+            document.getElementById('gameModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            const title = document.getElementById('modalTitle').innerText;
+            document.getElementById('gameModal').style.display = 'none';
+            if (title === "Selamat!") initGame();
+        }
+
+        window.onload = initGame;
+
+        function openFullscreen() {
+            var elem = document.documentElement; // Elemen dokumen penuh
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari/Chrome */
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen();
+            }
+        }
+    </script>
+</body>
+</html>
